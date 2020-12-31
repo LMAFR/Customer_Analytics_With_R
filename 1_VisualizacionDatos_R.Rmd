@@ -1,0 +1,971 @@
+---
+title: "Customer Analytics"
+subtitle: "Módulo V – Visualización de datos en R"
+author: "Profesores: Karina Laborde / Guillermo García Fernández"
+output:
+  html_document:
+    theme: cerulean
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+library(formatR)
+opts_chunk$set(
+  echo=TRUE,
+  eval=TRUE,
+  warning=FALSE,
+  message=FALSE,
+  tidy = TRUE, # re-format it for me!
+  tidy.opts=list(blank=FALSE, width.cutoff=60,size = 'normalsize'),
+  dev.args=list(bg='white', pointsize=10),
+  fig.width=8, 
+  fig.height=4, 
+  fig.path='figuras/')
+    
+knitr::opts_chunk$set()
+library(tidyverse)
+library(ggplot2)
+```
+
+    
+# GRÁFICOS CON GGPLOT2 
+
+## Gramática de ggplot2
+
+* **data**: Datos a representar (dataframe)
+* **aesthetics mappings** como se van a representar dos datos (colores, tamaño, etc)
+* **geoms** Tipo de objeto geométrico para la representación (lineas, puntos, histogramas, etc)
+* **facets** Representaciones en subgráficas según uno o varios factores. 
+* **stats** transformaciones estadísticas realizadas sobre los datos (suavizado, percentiles, etc)
+* **scales** qué tipo de escala usa un mapeado “estético”, (ej. Hombre-rojo, Mujer-azul)
+* **coordinates system** sistema de coordenadas para la representación
+
+```
+ggplot(data = <DATA>) + 
+  <GEOM_FUNCTION>(
+     mapping = aes(<MAPPINGS>),
+  ) 
+```
+
+* ggplot(data = mpg) (dataframe). Sistema de coordenadas sobre el que se irán añadiendo capas. El primer argumento es el dataframe de datos que se va a emplear. Crea ungráfico“vacío”
+* geom_points(): Añade una capa de representación al gráfico (GEOM). En este caso obtenemos un diagrama de dispersión.
+* aes() relaciona las variables del data.frame con el mapeado del gráfico (variables asociadas con los ejes X, e Y).
+
+```{r,fig.height=2}
+library(ggplot2)
+data(mpg)
+str(mpg)
+head(mpg, 10)
+tail(mpg)
+```
+
+
+```{r}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_point()
+```
+
+```{r}
+ggplot(data = mpg, aes(x = displ, y = hwy)) + 
+  geom_point()
+
+ggplot(mpg) + 
+  geom_point(aes(displ,hwy)) +
+  geom_line(aes(displ, cty), col="blue")
+```
+
+
+```{r}
+p <- ggplot(mpg, aes(x = displ, y = hwy)) + geom_point()
+```
+
+
+** Ejercicio: Crea el gráfico incrementando el número de capas del objeto gráfico **
+
+```{r}
+p <- ggplot(data = mpg)
+# Pon aquí tu código:
+p +
+  geom_point(mapping = aes(displ, hwy)) +
+  geom_smooth(aes(displ, hwy))
+```
+
+
+
+## Aesthetic 
+
+Un `aesthetic` es una propiedad visual del objeto dibujado. Depende del objeto. Por ejemplo, si dibujamos puntos podemos cambiar...
+
+* Tamaño (size) en mm
+* Forma (shape)
+* Color (color/colour)
+* Transparencia (alpha)
+* Relleno (fill) Coordenadas de los datos
+
+* Para asignar un `aesthetic` a una variable, asociamos el parámetro a la variable **dentro de aes()**, ggplot2 automáticamente le asigna un valor (color, forma, etc) a cada nivel de la variable asociada (proceso denominado scaling) y añade una leyenda explicando qué valor corresponde con cada nivel.
+
+* Un `aesthetic` también se puede fijar manualmente. En este caso NO está asociado con ninguna variable y se indica como argumento de la función GEOM y **va fuera de aes()**.
+
+
+```{r}
+#http://sape.inf.usi.ch/quick-reference/ggplot2/colour
+#http://sape.inf.usi.ch/quick-reference/ggplot2/linetype
+#http://sape.inf.usi.ch/quick-reference/ggplot2/shape
+#http://sape.inf.usi.ch/quick-reference/ggplot2/size
+
+library(ggplot2)
+data(mpg)
+ggplot(data = mpg) + geom_point(mapping = aes(x = displ, y = hwy, color=class))
+```
+
+```{r}
+library(ggplot2)
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy), color="red")
+```
+
+**Ejercicio: Añade el año (year) como forma del punto (shape) y número de cilíndros (cyl) como tamaño del punto.**
+
+```{r,fig.height=6}
+p <- ggplot(data = mpg)
+str(mpg)
+# Pon aquí tu código:
+
+p + geom_point(aes(displ, hwy, shape = factor(year), size = cyl))
+
+# Para establecer la forma (shape) no se puede usar una variable continua, por eso lo pasamos a factor.
+
+
+```
+
+
+## Geoms 
+
+* Dadas unas variables x e y podemos usar diferentes objetos visuales para representar los datos. Cada objeto es lo que se denomina geom. 
+
+    * geom_point() : gráficas de dispersión
+    * geom_line() : representaciones de líneas
+    * geom_histogram(): representación de histogramas 
+    * geom_smooth(): Ajuste suavizado a una curva
+
+* Cada geom tiene su propio mapeado (mapping) y un determinado conjunto de estéticos (aesthetic); Por ejemplo: Se puede elegir shape de un punto pero no de una línea, para la línea podemos elegir su tipo linetype.
+* Se pueden combinar varios geoms en una figura. Es la potencia de trabajar con capas.
+* Si el mapeado y los datos de los geom son los mismos se pueden indicar al crear el gráfico, evitando la repetición.
+* Los parámetros especifícicos para un geom lo indicaremos en cada uno. 
+* También podemos cambiar los datos del geom.
+
+```{r ,warning=FALSE}
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_point(aes(color=class)) + 
+  geom_smooth(se=T) +    # se = confidence interval, sombreado
+  geom_smooth(method="lm", col="red")
+
+ggplot(data = mpg, mapping = aes(x = displ, y = hwy)) + 
+  geom_jitter(aes(color=class)) + 
+  geom_smooth(se=T)
+```
+
+### Ejercicio: Representa cty frente a hwy. Añade las capas `geom_smooth` (usando el método de mínimos cuadrados lm) y `geom_rug()` (colorea las proyecciones por drv).
+```{r ,warning=FALSE}
+# Pon aquí tu código:
+
+ggplot(mpg, aes(cty, hwy)) +
+  geom_point(aes(color=drv)) +
+  geom_smooth(method="lm")
+
+
+```
+
+
+### Ejercicio: realiza el mismo ejercicio, pero añade una línea horizontal en hwy= 30 mediante geom_hline(). Añade el tema theme_minimal() para visualizar mejor al gráfico. **
+
+```{r ,warning=FALSE}
+# Pon aquí tu código:
+
+ggplot(mpg, aes(cty,hwy)) +
+  geom_point(aes(color = drv)) + 
+  geom_smooth(method = "lm") + 
+  geom_hline(yintercept =  30, color = 'blue', linetype = 3)  + 
+  theme_minimal()
+
+```
+
+
+
+## Facets 
+
+* Una alternativa a `aesthetic` para representar más variables en un gráfico es utilizar **facets**. Se usa para variables `categóricas`.
+    + facet_wrap(~): Si utilizamos la representación respecto a una variable
+    + facet_grid(~): Si utilizamos la representación respecto a dos variables discretas.
+
+```{r,fig.width=10, out.height='50%'}
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy, color=class),size=3,show.legend=FALSE) 
+
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy, color=class),size=3,show.legend=FALSE) +
+  facet_grid(.~class)
+
+ggplot(data = mpg) +
+  geom_point(mapping = aes(x = displ, y = hwy, color=class),size=3,show.legend=FALSE) +
+  facet_grid(class~.)
+```
+
+```{r}
+
+ggplot(data = mpg)+
+  geom_point(mapping = aes(x = displ, y = hwy, color=class))+
+  facet_grid(drv~class)
+
+```
+
+### Ejercicio: Recalcula los ejes de la partición con `scales=free`, `scales=free_x` y osbserva el cambio producido
+```{r}
+
+
+
+
+```
+
+### Ejercicio:  Añade labeller = label_both o labeller = label_value al facet_grid para elegir el tipo de etiquetado de los cuadros
+```{r}
+
+
+
+
+
+```
+
+```{r}
+load(file="datos/recidiva.RData")
+```
+
+
+### Ejercicio. Usando el conjunto de datos "Recidiva.RData", representa la AFP.pre.TxH frente a Tumor.Tot , dividiendo en facets utilizando la variable Recurrencia. Observa la importancia de incluir una transformación de la escala mediante scale_x_log10() **
+
+
+```{r}
+load(file="datos/recidiva.RData")
+```
+
+
+```{r}
+# Pon aquí tu código:
+
+
+
+```
+
+## Stats 
+
+* En ocasiones para generar un gráfico se realizan determinadas operaciones sobre los datos. Ejemplo, diagramas de barras, histogramas, ajustes de datos a un modelo.
+
+* Una alternativa a **geom** es utilizar las funciones **stat** .En muchas ocaciones, se pueden intercambiar las funciones **stat** por **geom**, ya que los valores por defecto están también intercambiados.
+
+* Utilizar las variables creadas por el estadístico, de la forma, `..variable..` para usarla en la representación.
+
+```{r}
+
+data(iris)
+p <- ggplot(iris, aes(x = Sepal.Width))
+p + geom_histogram()
+p + geom_bar()
+p + stat_bin()
+
+```
+
+
+```{r}
+
+data("diamonds")
+ggplot(data = diamonds) + geom_bar(mapping = aes(x = cut))
+
+ggplot(data = diamonds) + stat_count(mapping = aes(x = cut))
+
+```
+
+Más ejemplos
+```{r}
+library(MASS)
+str(mammals)
+head(mammals)
+mam.new <- data.frame(body = log10(mammals$body))
+```
+
+```{r}
+ggplot(mam.new, aes(x = body)) +
+  # usamos "..variable.." para acceder a variables calculadas: density, count, ncount y ndensity
+  geom_histogram(aes( y = ..density..)) +   
+  geom_rug()
+  # stat_function(fun = dnorm, colour = "red",
+  #               arg = list(mean = mean(mam.new$body), sd = sd(mam.new$body)))
+```
+
+## Position 
+
+**position** determina cómo se organizan los **geoms**. El argumento puede tomar varios valores, los más usados son: 
+
+* dodge: Colocar los elmentos unos al lado de otros.
+* stack: Apilar los elementos uno encima del otro sin normalizar. 
+* fill: Apilar los elementos uno encima del otro y normalizados. 
+* jitter: Añadir ruido aleatorio para separar los elementos que aparecerían juntos. 
+
+Cada posición se puede ajustar manualmente con los argumentos width y height.
+
+```{r}
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = clarity), position = "dodge")
+```
+
+```{r}
+#comparar con el anterior
+ggplot(data = diamonds) + geom_bar(mapping = aes(x = cut, fill = "red"), position = "dodge")
+ggplot(data = diamonds) + geom_bar(mapping = aes(x = cut, color = clarity), position = "dodge")
+ggplot(data = diamonds) + geom_bar(mapping = aes(x = cut, fill = clarity), position = "stack")
+ggplot(data = diamonds) + geom_bar(mapping = aes(x = cut, fill = clarity), position = "fill")
+#ggplot(data = diamonds) + geom_col(mapping = aes(x = cut, fill = "red"), position = "dodge")  no funciona porque no hay y
+```
+
+## Coordinate systems 
+
+Distintos sistemas de coordenadas:
+
+* coord_flip(): cambia ejes X e Y
+* coord_polar(): coordenadas polares
+* coord_trans(): transforma las coordenadas cartesianas xtrans,ytrans
+* coord_quickmap(): utilizadas para mantener la relación de aspecto en mapas
+* coord_map(): para especificar la proyección del plano
+
+```{r}
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = cut), show.legend = FALSE, width = 1)
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = cut), show.legend = FALSE, width = 1) + 
+  coord_polar()
+
+ggplot(data = diamonds) + 
+  geom_bar(mapping = aes(x = cut, fill = cut), show.legend = FALSE, width = 1) + 
+  labs(x = NULL, y = NULL) + 
+  coord_polar()
+```
+
+
+### Ejercicio. Encuentra la mejor representación para el siguiente conjunto de datos. Utiliza geom_col
+
+```{r}
+raw.data<-data.frame(stringsAsFactors=FALSE,
+    Tematica = c("Medio ambiente", "Transporte", "Sociedad y Bienestar",
+                 "Urbanismo e Infraestructuras", "Salud", "Turismo",
+                 "Cultura y Ocio", "Sector Público", "Comercio", "Economía", "Industria",
+                 "Hacienda", "Ciencia y Tecnología", "Educación", "Seguridad",
+                 "Vivienda", "Demografía", "Deporte", "Empleo", "Energía", "Otras"),
+    Valencia = c(37L, 27L, 26L, 20L, 15L, 10L, 5L, 5L, 3L, 3L, 0L, 3L, 1L, 1L,
+                 1L, 1L, 0L, 0L, 0L, 0L, 0L),
+     Londres = c(100L, 81L, 5L, 58L, 82L, 15L, 21L, 105L, 62L, 62L, 62L, 62L,
+                 0L, 61L, 43L, 82L, 167L, 22L, 103L, 0L, 36L),
+       Milan = c(23L, 21L, 28L, 38L, 0L, 19L, 14L, 14L, 0L, 68L, 6L, 0L, 0L,
+                 18L, 0L, 0L, 88L, 1L, 0L, 0L, 13L),
+      Madrid = c(32L, 56L, 26L, 25L, 16L, 10L, 20L, 51L, 5L, 8L, 0L, 17L, 3L,
+                 7L, 9L, 1L, 2L, 19L, 2L, 0L, 1L),
+   Barcelona = c(14L, 41L, 10L, 43L, 0L, 3L, 52L, 49L, 8L, 0L, 0L, 0L, 2L, 1L,
+                 6L, 59L, 130L, 2L, 5L, 0L, 1L)
+)
+
+#convierte las columnas 2 a 6 en una variable llamada Ciudad y el valor en Conjunto de datos
+DF <- pivot_longer(raw.data, cols=c(2:6), names_to = "Ciudad", values_to = "Conjuntos_de_datos")
+DF$Ciudad<-as.factor(DF$Ciudad)
+head(DF)
+```
+
+```{r}
+# There are two types of bar charts: geom_bar makes the height of the bar proportional to the number of cases in each group (or if the weight aethetic is supplied, the sum of the weights). If you want the heights of the bars to represent values in the data, use geom_col instead. geom_bar uses stat_count by default: it counts the number of cases at each x position. geom_col uses stat_identity: it leaves the data as is.
+library(tidyverse)
+library(forcats)
+
+# Pon aquí tu código:
+ggplot(data= DF, mapping= aes(x=Ciudad, y=Conjuntos_de_datos)) +
+  geom_col()
+
+```
+
+A veces un solo gráfico puede no ser suficiente. 
+```{r}
+ggplot(DF, aes(Tematica, Conjuntos_de_datos)) + 
+  geom_col(aes(fill = Ciudad))
+# Opción 2b:
+ggplot(DF, aes(Tematica, Conjuntos_de_datos)) + 
+  geom_col(aes(fill = Ciudad))+
+  coord_flip() 
+# Opcion 2c:
+ggplot(DF, aes(Tematica, Conjuntos_de_datos)) + 
+  geom_col(aes(fill = Ciudad), position = "dodge") +
+  coord_flip() 
+# Opcion 2d:
+ggplot(DF, aes(Tematica, Conjuntos_de_datos)) + 
+  geom_col(aes(fill = Ciudad), position = "fill") +
+  coord_flip()
+
+```
+
+
+### Ejercicio. Encuentra la mejor representación para el conjunto de datos anterior (DF)utilizando facetas
+
+```{r}
+# Pon aquí tu código:
+
+
+```
+
+### Ejercicio. Representa mediante gráficos de radar el conjunto de datos de las ciudades DF **
+
+```{r}
+# Pon aquí tu código:
+
+
+```
+
+## Scales 
+
+Mapea los valores de los datos a los valores visuales (aesthetic). Los más usados con 
+
+* scale_*_manual: mapea los valores a los que elijamos para el gráfico.
+* scale_fill_brewer(palette=): colorea según paleta de colores para valores discretos
+* scale_fill_distiller(palette=): colorea según paleta de colores para valores continuos
+
+```{r}
+ggplot(diamonds, aes(x = price, fill = color)) +
+  geom_histogram(position = "dodge", binwidth = 10000)+ 
+  scale_fill_brewer(type = "seq", palette = 1)+
+  coord_flip()
+```
+
+
+## Themes
+
+Lo interesante de los temas es que se **pueden guardar y reutilizar** cuando nos venga bien. Esto permite una uniformidad en el aspecto de los gráficos que generamos, p.e. en un informe: 
+```{r}
+z <- ggplot(iris, aes(x = Sepal.Length, y = Sepal.Width, col = Species)) +
+  geom_jitter(alpha = 0.7) + 
+  scale_color_brewer("Species",palette = "Dark2",labels = c("Setosa","Versicolor","Virginica")) +
+  scale_y_continuous("Width (cm)", limits = c(2, 4.5), expand = c(0, 0)) +
+  scale_x_continuous("Length (cm)", limits = c(4, 8), expand = c(0, 0)) +
+  ggtitle("Sepals") +
+  coord_fixed(1)
+z
+```
+
+```{r}
+z + theme(panel.background = element_blank(), 
+          legend.background = element_blank(),
+          legend.key = element_blank(),
+          panel.grid = element_blank(),
+          axis.text = element_text(colour = "black"),
+          axis.line = element_line(colour = "black"))
+```
+
+```{r}
+theme_iris <- theme(panel.background = element_blank(),
+                    legend.background = element_blank(),
+                    legend.key = element_blank(),
+                    panel.grid = element_blank(),
+                    axis.text = element_text(colour = "black"),
+                    axis.line = element_line(colour = "black"))
+z
+z + theme_iris
+```
+
+
+
+Además, contamos con librerías que ya tiene temas predefinidos: ggthemes
+```{r}
+library(ggthemes)
+
+z + theme_wsj()
+z + theme_excel_new()
+z + theme_gdocs()
+z + theme_economist()
+```
+
+## Librería esquisse
+
+Libreria que permite la visualización rápida y el acceso a muchos parámetros del gráfico de forma intuitiva y fácil. 
+No tiene todas las opciones de personalización posibles, pero es una buena forma de explorar y generar algunos gráficos exploratorios o iniciales
+
+Permite generar código R de visualización creada.
+
+```{r warning=FALSE}
+#install.packages("esquisse")
+
+library(dplyr)
+library(ggplot2)
+library(esquisse)
+
+#esquisser(mpg)
+
+```
+
+
+```{r}
+#esquisser(iris)
+```
+
+
+
+# Gráficos por función 
+
+## Gráficos más utilizados
+
+* Distribution: Violin, Density, Histogram, Boxplot, Ridgeline / Joyplot
+* Correlation: Scatter, Heatmap, Correlogram, Bubble, Connected Scatter, Density 2D
+* Rankings: Barplot,Spider/Radar,Wordcloud, Parallel, Lollipop/Stem, Circular Barplot
+* Part of a whole: Treemap, Dendrogram, Venn Diagram, Stacked Bar, Pie Chart, Doughnut, Circular Packing
+* Evolution: Stacked Area, Line, Area, Streamgraph, Parallel, Time series
+* Maps: Background Map, Connection, Chloropleth, Bubble, Hexbin Map, Cartogram
+* Flow: Network, Chord Diagram, Hierarchical Edge Bundling, Sankey diagram
+* Other: Interactive, Colour, Cheat sheet, 3D, Animation
+
+## Distribuciones. Histogramas 
+
+```{r,warning=FALSE}
+library(ggplot2)
+library(gridExtra)
+set.seed(123)
+var=rnorm(1000)
+# Con qplot: no requiere dataframe
+plot1 <- qplot(var , bins = 30,fill=I(rgb(0.1,0.2,0.4,0.6)) ) # sin Tema
+plot2 = plot1+theme_bw()+
+  annotate("text", x = -1.9, y = 75, label = "bw()" , col="orange" , size=4)
+plot3 = plot1+theme_classic()+
+  annotate("text", x = -1.9, y = 75, label = "classic()" , col="red" , size=4)
+plot4 = plot1+theme_gray()+
+  annotate("text", x = -1.9, y = 75, label = "gray()" , col="green" , size=4)
+grid.arrange(plot1,plot2,plot3,plot4, ncol=2) # disposicion en 2x1 
+
+# geom_histogram requiere dataframe:
+ggplot(as.data.frame(var))+geom_histogram(aes(x=var))
+```
+
+## Distribuciones. Boxplot 
+
+```{r, warning=FALSE}
+# geom_boxplot proposes several arguments to custom appearance
+ggplot(mpg, aes(x=class, y=hwy)) + 
+    geom_boxplot(
+        
+        # custom boxes
+        color="blue",
+        fill="blue",
+        alpha=0.2,
+        
+        # Notch?
+        notch=TRUE,
+        notchwidth = 0.8,
+        
+        # custom outliers
+        outlier.colour="red",
+        outlier.fill="red",
+        outlier.size=3
+    )
+```
+
+## Distribuciones. Densidad 
+
+```{r}
+ggplot(data=diamonds,aes(x=price, group=cut, fill=cut)) +
+    geom_density(adjust=1.5)
+
+ggplot(data=diamonds,aes(x=price, group=cut, fill=cut)) +
+    geom_density(adjust=1.5) + 
+  geom_density(adjust=1.5,alpha=0.1)
+```
+
+## Distribuciones. Joyplot
+
+```{r}
+library(ggridges)
+ggplot(diamonds, aes(x = price, y = cut, fill = cut)) +
+  geom_density_ridges() 
+
+ggplot(diamonds, aes(x = price, y = cut, fill = cut)) +
+  geom_density_ridges() +
+  theme_ridges() 
+
+ggplot(diamonds, aes(x = price, y = cut, fill = cut)) +
+  geom_density_ridges() +
+  theme_ridges() +
+  theme(legend.position = "none")
+```
+
+## Correlaciones. Scatter
+
+```{r}
+library(ggExtra)
+p<-ggplot(mtcars, aes(x=wt, y=mpg, color=cyl, size=cyl)) +
+      geom_point() +
+      theme(legend.position="none")
+pm <- ggMarginal(p, type="histogram") # con marginal histogram
+pm
+p
+```  
+
+
+## Correlaciones. Correlation. 
+
+```{r}
+library(ellipse)
+library(RColorBrewer)
+data=cor(mtcars)
+my_colors=colorRampPalette(brewer.pal(5, "Spectral"))(100) # Build a Pannel of 100 colors with Rcolor Brewer
+ord <- order(data[1, ]) # Order the correlation matrix
+data_ord<-data[ord, ord]
+plotcorr(data_ord, col=my_colors[data_ord*50+50] , mar=c(1,1,1,1)  )
+```
+
+** Ejercicio: Utiliza la función ggcorr del la librería ggcorrplot para representar la correlación de otra forma. **
+
+```{r}
+load(file="datos/recidiva.RData")
+library(ggcorrplot)
+
+#solucion
+idx.num <- sapply(datos, is.numeric)
+numericas <- datos[idx.num]
+
+corr <- cor(numericas, method = "pearson", use = "complete.obs")
+ggcorrplot(corr, hc.order = TRUE, lab = TRUE,lab_size = 2)
+
+```
+
+## Correlaciones. Heatmap
+
+Una mapa de calor es una tabla de números, donde sustituyes cada número por una celda de color.
+
+```{r}
+data=as.matrix(mtcars)
+heatmap(data, scale="column")
+```  
+
+## Correlaciones. Densidad.
+
+```{r fig.width=6, fig.height=5}
+ggplot(diamonds, aes(x=depth, y=carat) ) +
+  geom_hex(bins = 20) 
+# +
+#   theme_bw()
+```
+
+## Ranking. Barplot.
+
+```{r}
+data <- data.frame(name=letters[1:5],
+                   value=sample(seq(4,15),5),sd=c(1,0.2,3,2,4))
+ggplot(data) +
+  geom_bar( aes(x=name, y=value), stat="identity", fill="skyblue", alpha=0.5) +
+  geom_errorbar(aes(x=name, ymin=value-sd, ymax=value+sd), width=0.4, 
+                colour="orange", alpha=0.9, size=1.3) +coord_flip()
+
+ggplot(data) +
+  geom_bar( aes(x=name, y=value, fill=name), stat="identity", alpha=0.5) +
+  geom_errorbar(aes(x=name, ymin=value-sd, ymax=value+sd), width=0.4, 
+                colour="orange", alpha=0.9, size=1.3) +coord_flip()
+```
+
+## Ranking. Cleveland dot plots. 
+
+```{r}
+value1=abs(rnorm(26))*2
+data=data.frame(x=LETTERS[1:26], value1=value1, value2=value1+1+rnorm(26, sd=1) )
+data = data %>% rowwise() %>% mutate( mymean = mean(c(value1,value2) )) %>% arrange(mymean) %>% mutate(x=factor(x, x))
+ggplot(data) + # plot
+  geom_segment( aes(x=x, xend=x, y=value1, yend=value2), color="grey") +
+  geom_point( aes(x=x, y=value1), color=rgb(0.2,0.7,0.1,0.5), size=3 ) +
+  geom_point( aes(x=x, y=value2), color=rgb(0.7,0.2,0.1,0.5), size=3 ) +
+  coord_flip() 
+```
+
+# * * * * * * * * * * * * *  
+
+# GRÁFICOS CON OTRAS LIBRERÍAS
+
+## Ranking. Likert.
+
+```{r}
+library(likert) # library
+data(pisaitems) # Use a provided dataset
+items28 <- pisaitems[, substr(names(pisaitems), 1, 5) == "ST24Q"] 
+#pisaitems %>% select(starts_with("ST24Q")) -> items29
+plot(likert(items28)) # Realize the plot
+```
+
+## Ranking. Radar. 
+
+```{r}
+library(fmsb)
+set.seed(99) 
+data=as.data.frame(matrix( sample( 0:20 , 15 , replace=F) , ncol=5))
+colnames(data)=c("math" , "english" , "biology" , "music" , "R-coding" )
+rownames(data)=paste("mister" , letters[1:3] , sep="-")
+data=rbind(rep(20,5) , rep(0,5) , data) # max y min: obligado incluirlos
+radarchart(data) 
+```
+
+## Asociaciones. Treemap.
+
+```{r}
+library(treemap)# library
+group=c(rep("group-1",4),rep("group-2",2),rep("group-3",3))
+subgroup=paste("subgroup" , c(1,2,3,4,1,2,1,2,3), sep="-")
+value=c(13,5,22,12,11,7,3,1,23)
+data=data.frame(group,subgroup,value)
+treemap(data,index=c("group","subgroup"),vSize="value",type="index")
+```
+
+** Ejercicio: Realiza el treemap al conjunto de datos de las ciudades.**
+
+```{r}
+#solucion
+treemap(DF,index=c("Ciudad","Tematica"),vSize ="Conjuntos_de_datos")
+
+```
+
+## Series temporales
+
+```{r}
+#?strftime
+day=as.Date("2017-06-14") - 0:364
+value=runif(365) + seq(-140, 224)^2 / 10000
+data=data.frame(day, value)
+
+p<-ggplot(data, aes(x=day, y=value)) +geom_line() +xlab("")
+p<-p + scale_x_date(date_breaks = "2 week", date_labels = "%b %d")
+p + theme(axis.text.x=element_text(angle=60, hjust=1))
+```
+
+
+# Grafos y Diagramas
+
+## Grafos con igraph 
+
+
+```{r}
+library(igraph)
+network=graph_from_literal( A-B-C-D, E-A, D-C-A, D-A-D-C-B )
+plot(network)
+```
+
+
+```{r}
+library(igraph); set.seed(10)
+data<-matrix(sample(0:2, 25, replace=TRUE), nrow=5)
+data
+colnames(data)=rownames(data)=LETTERS[1:5]
+data
+network<-graph_from_adjacency_matrix(data) #adjency matrix
+plot(network)
+```
+
+
+```{r}
+set.seed(10)
+links=data.frame(
+    source=c("A","A", "A", "A", "A","F", "B"),
+    target=c("B","B", "C", "D", "F","A","E"))
+nodes=data.frame(
+    name=LETTERS[1:6],
+    carac=c( rep(10,3), rep(20,3)))
+links
+nodes
+network=graph_from_data_frame(d=links, vertices=nodes, directed=T) 
+plot(network)
+plot(network, vertex.size=nodes$carac)
+```
+
+** Ejercicio: Genera el siguiente grafo, pero digirido desde A hasta T. **
+
+```{r}
+library(igraph)
+network=graph_from_literal( A-E, S-E, E-O, E-R, O-T, R-T)
+plot(network)
+```
+
+```{r}
+library(igraph) 
+tree <- graph.tree(10) 
+tree <- set.edge.attribute(tree, "color", value="black") 
+plot(tree,layout=layout.reingold.tilford(tree,root=1,flip.y=TRUE)) 
+```
+
+
+# Mapas
+
+La libreria "maps" tiene datos de todos los paises. Tambien tiene bases de datos de muchas ciudades: world.cities
+La función map_data() de ggoplot2 permite coger determinados mapas en formato adecuado para ggplot: 
+* map_data("world")
+* map_data("state")
+ y algunos más...
+
+```{r}
+library(maps)
+str(map_data("world"))
+head(map_data("world"))
+```
+
+
+```
+map_data("world") %>% filter(region=="UK") -> UK
+
+world.cities %>% filter(country.etc=="UK") -> data
+library(ggrepel)
+
+ggplot() +
+  geom_polygon(data = UK, aes(x=long, y = lat, group = group), fill="blue", alpha=0.5) +
+  theme_void() + ylim(50,59) + coord_map() +
+  theme(legend.position="none")
+
+ggplot() +
+  geom_polygon(data = UK, aes(x=long, y = lat, group = group), fill="blue", alpha=0.5) +
+  geom_point( data=data, aes(x=long, y=lat, alpha=pop)) +
+  geom_text_repel( data=data %>% arrange(pop) %>% tail(10), aes(x=long, y=lat, label=name), size=5) +
+  geom_point( data=data %>% arrange(pop) %>% tail(10), aes(x=long, y=lat), color="red", size=3) +
+  theme_void() + ylim(50,59) + coord_map() +
+  theme(legend.position="none")
+```
+
+
+### Ejercicio: Intenta hacer lo mismo pero visualizando el mapa de España y sus ciudades
+
+```{r,warning=FALSE}
+library(maps)
+map_data("world") %>% filter(region=="Spain") -> SP
+world.cities %>% filter(country.etc=="Spain") -> data
+library(ggrepel)
+
+# Pon aquí tu código:
+
+
+```
+
+## Más Mapas
+
+"rnaturalearth" y "rnaturalearthdata"
+
+```{r}
+library("rnaturalearth")
+library("rnaturalearthdata")
+library("rgeos")
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+```
+
+```{r fig.height=8, fig.width=12}
+ggplot(data = world) +
+    geom_sf() +
+    xlab("Longitude") + ylab("Latitude") +
+    ggtitle("World map", subtitle = paste0("(", length(unique(world$name)), " countries)"))
+```
+
+Coloreamos segun población 
+
+```{r fig.height=8, fig.width=12}
+ggplot(data = world) +
+    geom_sf(aes(fill = pop_est)) +
+    scale_fill_viridis_c(option = "plasma", trans = "sqrt") + 
+    ggtitle("World map", subtitle = paste0("(", length(unique(world$name)), " countries)")) +
+    theme_void() 
+```
+
+```{r }
+library("ggspatial")
+
+ggplot(data = world) +
+    geom_sf() +
+    annotation_scale(location = "bl", width_hint = 0.5) +
+    annotation_north_arrow(location = "bl", which_north = "true", 
+        pad_x = unit(0.75, "in"), pad_y = unit(0.5, "in"),
+        style = north_arrow_fancy_orienteering) +
+    coord_sf(xlim = c(-30, 50), ylim = c(30, 70))
+
+```
+
+
+# Visualizaciones interactivas en 3D
+
+Utilizamos el archivo excel dataset_RFM para calcular la métrica RFM:
+
+```{r}
+library(readxl)
+library(dplyr)
+
+dataset_RFM <- read_excel("datos/dataset_RFM.xlsx")
+
+# Modificamos naming columnas para que tengan sentido
+colnames(dataset_RFM) = c('customer_id', 'gross_compra', 'fecha_compra')
+
+# Ajustamos fecha y generamos una nueva variable solo con año para facilitar análisis
+dataset_RFM$fecha_compra <- as.Date(dataset_RFM$fecha_compra, "%Y-%m-%d")
+dataset_RFM$year <- as.numeric(format(dataset_RFM$fecha_compra, "%Y"))
+
+# Calculamos RFM
+Calculo_RFM <- dataset_RFM %>% 
+  group_by(customer_id) %>%
+  summarise(Recency=as.numeric(as.Date(Sys.Date())-max(fecha_compra)),
+            Frequency=length(customer_id), 
+            Monetary_Value= sum(gross_compra),
+            year= max(year)) 
+
+# Filtramos últimos 3 años
+Calculo_RFM_filtered <- Calculo_RFM %>%
+  filter(year %in% c(2018, 2019, 2020))
+
+head(Calculo_RFM_filtered)
+
+```
+
+
+Visualizamos en 3D utilizando la potencia de la librería plotly
+
+```{r}
+
+library(plotly)
+
+fig <- plot_ly(x= Calculo_RFM_filtered$Recency,
+               y= Calculo_RFM_filtered$Frequency,
+               z= Calculo_RFM_filtered$Monetary_Value,
+               type="scatter3d",
+               mode="markers",
+               color=factor(Calculo_RFM_filtered$year),
+               colors=c('red2', 'blue2', 'green3'))
+
+fig <- fig %>% layout(title = 'Visualizing RFM in 3D',
+                      scene = list(xaxis = list(title = 'Recency'),
+                                   yaxis = list(title = 'Frequency'),
+                                   zaxis = list(title = 'Monetary Value')))
+
+fig
+
+
+```
+
+
+### Ejercicio: el excel Calculo_RFM contiene la segmentación de clientes según el RFM. Visualiza las variables "Recency", "Frequency", "Monetary Value" en 3D, pero en esta ocasión utiliza la variable "Segmento" para asignar el color según el tipo de cliente
+
+```{r,warning=FALSE}
+Calculo_RFM <- read_excel("datos/Calculo_RFM.xlsx")
+head(Calculo_RFM)
+```
+
+Observa como, utilizando plotly, podemos interactuar con el gráfico (rotarlo, hacer zoom, etc) para visualizar y comprender los segmentos de cliente identificados
+
+```{r,warning=FALSE}
+
+# Pon aquí tu código:
+
+
+```
+
+
+
